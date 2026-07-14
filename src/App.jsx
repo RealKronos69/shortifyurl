@@ -7,7 +7,9 @@ import passimg from './assets/key.png'
 
 function App() {
     const urlvalue = useRef()
+    const password = useRef()
     const [qr, setqr] = useState('')
+    const [protect, setprotect] = useState(false)
     const [shortenurl, setshorten] = useState("")
     useEffect(() => {
         console.log("Component mounted")
@@ -44,20 +46,26 @@ function App() {
 
 
     }
-    async function fetchdata(url) {
+
+    const activebox = boxes.filter((e) => e.isactive)
+
+    async function fetchdata(url, pass) {
         if (!url || !validurl(url)) {
             console.log("invalid url, skipping fetch.");
             return;
         }
-        const activebox = boxes.filter((e) => e.isactive)
+
         if (activebox.length > 0) {
             if (activebox[0].id === 1) {
                 generateQR(url)
                 return;
             }
             if (activebox[0].id === 2) {
-                console.log('hello world')
+                setprotect(true)
+                fetchprotected(url, pass)
+                return
             }
+
         }
 
         const response = await fetch('http://localhost:3000/', {
@@ -73,6 +81,32 @@ function App() {
         setshorten(data.shorturl)
         console.log('fetch req sent!')
         urlvalue.current.value = ""
+        setprotect(false)
+    }
+
+    const fetchprotected = async (url, pass) => {
+        if (!pass) {
+            console.log('enter a password')
+            return
+        }
+        const response = await fetch('http://localhost:3000/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ URL: url, isprotected: true, password: pass })
+        })
+        if (response.status === 201) {
+            const data = await response.json()
+            setshorten(data.shorturl)
+            console.log('fetch req sent protected!')
+            urlvalue.current.value = ""
+            setprotect(false)
+        }else if(response.status===403){
+            const data = await response.json()
+            window.location.href=data.redirect
+        }
+
     }
 
     const handlecopy = (URL) => {
@@ -113,21 +147,28 @@ function App() {
 
 
                 </div>
-                <div className='justify-center flex bg-white'>
-                    {qr != '' && <a href={qr} download={qr}>
+                {qr != '' && <div className='justify-center flex bg-white'>
+                    <a href={qr} download={qr}>
                         <img onClick={(e) => { e.target.remove() }} src={qr} alt="QR Code" />
                     </a>
-                    }
                 </div>
+                }
+
+
+                {protect && activebox.length > 0 && <div className='justify-center flex flex-wrap rounded-2xl gap-5'>
+                    <input ref={password} type="password" className='w-50 p-3 rounded-2xl font-mono focus:outline-0 bg-gray-900 text-white' placeholder='enter a password' />
+                    <button onClick={() => { fetchdata(urlvalue.current.value, password.current.value) }} className='p-3 bg-gray-500 font-mono rounded-2xl text-white cursor-pointer hover:scale-101'>create</button>
+                </div>
+                }
 
                 <div className='w-70 rounded-2xl justify-center flex flex-wrap gap-5'>
                     {shortenurl && (
                         <>
-                            <div className='p-4 w-full rounded-2xl bg-gray-900 border-2 border-gray-500 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-800 h-15 text-white'>http://localhost:3000/{shortenurl}</div>
-                            <button onClick={() => { 
-                                handlecopy(`http://localhost:3000/${shortenurl}`)
-                                setshorten('') 
-                                }} className='bg-blue-700 p-4 font-bold border-2 w-full text-blue-100 rounded-2xl border-blue-400 cursor-pointer hover:scale-101 font-mono'>Copy Link</button>
+                            <div className='p-4 w-full rounded-2xl bg-gray-900 border-2 border-gray-500 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-800 h-15 text-white'>http://localhost:3000/api/{shortenurl}</div>
+                            <button onClick={() => {
+                                handlecopy(`http://localhost:3000/api/${shortenurl}`)
+                                setshorten('')
+                            }} className='bg-blue-700 p-4 font-bold border-2 w-full text-blue-100 rounded-2xl border-blue-400 cursor-pointer hover:scale-101 font-mono'>Copy Link</button>
                         </>
                     )}
                 </div>

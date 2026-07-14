@@ -10,6 +10,15 @@ const schema = mongoose.Schema({
         type:String,
         trim:true,
     },
+    isprotected:{
+        type:Boolean,
+        default:false
+    },
+    password:{
+        type:String,
+        trim:true,
+        default: null
+    },
     createdAt: {
         type: Date,
         default: Date.now,
